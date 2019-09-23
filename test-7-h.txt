@@ -1,0 +1,14 @@
+# Large tes but we just want to see the help message
+L
+10
+0 1 $
+4 4 @
+2 0 #
+0 0 #
+1 0 o
+1 1 #
+2 2 .
+2 3 o
+3 2 o
+3 3 o
+0 2 #

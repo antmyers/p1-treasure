@@ -35,6 +35,7 @@ struct Hunt {
 };
 struct Backtracer {
     vector<pair<int, int>> coordinates;
+    deque<pair<int, int>> oneBefore;
     vector<char> directions;
     deque<pair<int, int>> sailBack;
     deque<pair<int, int>> searchBack;
@@ -62,17 +63,33 @@ void printMap(Backtracer &bt,vector<vector<char>> &map, string mapType) {
 
 
 int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>> &map) {
+    for(size_t i = 0; i < h.sailContainer.size(); i++) {
+        for(size_t j = 0; j < bt.coordinates.size(); j++) {
+            if(h.sailContainer[i] == bt.coordinates[j]) {
+                bt.coordinates.erase(bt.coordinates.begin() + int(j));
+                bt.directions.erase(bt.directions.begin() + int(j));
+                break;
+            }
+        }
+    }
+    for(size_t i = 0; i < h.searchContainer.size(); i++) {
+        for(size_t j = 0; j < bt.coordinates.size(); j++) {
+            if(h.searchContainer[i] == bt.coordinates[j]) {
+                if(bt.coordinates[j] == p) {
+                    break;
+                }
+                bt.coordinates.erase(bt.coordinates.begin() + int(j));
+                bt.directions.erase(bt.directions.begin() + int(j));
+                break;
+            }
+        }
+    }
     int pathLength = 0;
     pair<int, int> starter = p;
     if(h.showPath == "M") {
         map[size_t(p.first)][size_t(p.second)] = 'X';
     }
-    size_t counter = 0;
     while(starter != h.startingLocation) {
-        counter++;
-        if(counter > map.size() * map.size()) {
-            return int(counter - 1);
-        }
         for(size_t i = 0; i < bt.coordinates.size(); i++) {
             if(bt.coordinates[i] == starter) {
                 if(bt.directions[i] == 'n') {
@@ -84,9 +101,14 @@ int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>
                             break;
                         }
                         if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == 'X') {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '|';
+                            if(i != 0 && (bt.directions[i-1] == 'e' || bt.directions[i-1] == 'w')) {
+                               map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
+                            }
+                            else {
+                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '|';
+                            }
                         }
-                        else if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == '-') {
+                        else if(map[size_t(bt.oneBefore[0].first)][size_t(bt.oneBefore[0].second)] == '-') {
                             map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
                         }
                         else {
@@ -115,7 +137,12 @@ int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>
                             break;
                         }
                         if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == 'X') {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '-';
+                            if(i != 0 && (bt.directions[i-1] == 'n' || bt.directions[i-1] == 's')) {
+                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
+                            }
+                            else {
+                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '-';
+                            }
                         }
                         else if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == '|') {
                             map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
@@ -146,7 +173,12 @@ int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>
                             break;
                         }
                         if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == 'X') {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '|';
+                            if(i != 0 && (bt.directions[i-1] == 'e' || bt.directions[i-1] == 'w')) {
+                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
+                            }
+                            else {
+                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '|';
+                            }
                         }
                         else if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == '-') {
                             map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
@@ -173,11 +205,16 @@ int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>
                     starter = temp;
                     pathLength++;
                     if(h.showPath == "M") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == '$') {
+                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'X') {
                             break;
                         }
                         if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == 'X') {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '-';
+                            if(i != 0 && (bt.directions[i-1] == 'n' || bt.directions[i-1] == 's')) {
+                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
+                            }
+                            else {
+                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '-';
+                            }
                         }
                         else if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == '|') {
                             map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
@@ -187,7 +224,7 @@ int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>
                         }
                     }
                     else if(h.showPath == "L") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'X') {
+                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == '$') {
                             break;
                         }
                         else if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'o') {
@@ -211,8 +248,6 @@ int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>
 
 void readTreasureMap(vector<vector<char>> &map, char &mapStyle, size_t N, Hunt &h) {
     char mapSpace;
-    size_t rowNum;
-    size_t colNum;
     if(mapStyle == 'M') {
         for(size_t i = 0; i < N; i++) {
             for(size_t j = 0; j < N; j++) {
@@ -231,6 +266,8 @@ void readTreasureMap(vector<vector<char>> &map, char &mapStyle, size_t N, Hunt &
         }
     }
     else if(mapStyle == 'L') {
+        size_t rowNum;
+        size_t colNum;
         while(cin >> rowNum) {
             cin >> colNum;
             cin >> mapSpace;
@@ -255,8 +292,11 @@ void readTreasureMap(vector<vector<char>> &map, char &mapStyle, size_t N, Hunt &
     }
 }
 void failedHunt(Hunt &h) {
+    if(h.showStats == true) {
+        cout << "--- STATS ---\n" << "Starting location: " << h.startingLocation.first << ',' << h.startingLocation.second << '\n' << "Water locations investigated: " << h.waterLocations << '\n' << "Land locations investigated: " << h.landLocations << '\n' << "Went ashore: " << h.timesAshore << '\n' << "--- STATS ---\n";
+    }
     cout << "No treasure found after investigating " <<
-    h.discoveredLocations.size() << "locations.\n";
+    h.discoveredLocations.size() << " locations.\n";
 }
 void endHunt(pair<int, int> p, Hunt &h, Backtracer &bt, vector<vector<char>> &map) {
     int pathLength = runBacktracer(bt, h, p, map);
@@ -294,13 +334,13 @@ void searchFMLocation(vector<pair<int, int>> v, vector<vector<char>> &map, Hunt 
                                                               && v[i].second < int(map[0].size()))) {
             if(map[size_t(v[i].first)][size_t(v[i].second)] == 'o') {
                 if(checkPreviouslyDiscovered(v[i], h) == false) {
-                    if(huntO[i] == 'n') {
+                    if(huntO[i] == 'n' || huntO[i] == 'N') {
                         bt.directions.push_back('n');
                     }
-                    else if(huntO[i] == 'e') {
+                    else if(huntO[i] == 'e' || huntO[i] == 'E') {
                         bt.directions.push_back('e');
                     }
-                    else if(huntO[i] == 's') {
+                    else if(huntO[i] == 's' || huntO[i] == 'S') {
                         bt.directions.push_back('s');
                     }
                     else {
@@ -317,13 +357,13 @@ void searchFMLocation(vector<pair<int, int>> v, vector<vector<char>> &map, Hunt 
                 }
             }
             else if(map[size_t(v[i].first)][size_t(v[i].second)] == '$') {
-                if(huntO[i] == 'n') {
+                if(huntO[i] == 'n' || huntO[i] == 'N') {
                     bt.directions.push_back('n');
                 }
-                else if(huntO[i] == 'e') {
+                else if(huntO[i] == 'e' || huntO[i] == 'E') {
                     bt.directions.push_back('e');
                 }
-                else if(huntO[i] == 's') {
+                else if(huntO[i] == 's' || huntO[i] == 'S') {
                     bt.directions.push_back('s');
                 }
                 else {
@@ -365,17 +405,17 @@ void firstMateTakeOver(Hunt &h, vector<vector<char>> &map, Backtracer &bt) {
         h.searchContainer.pop_front();
         vector<pair<int, int>> locations;
         pair<int, int> north(currentLocation.first - 1, currentLocation.second);
-        pair<int, int> east(currentLocation.first, currentLocation.second - 1);
+        pair<int, int> east(currentLocation.first, currentLocation.second + 1);
         pair<int, int> south(currentLocation.first + 1, currentLocation.second);
-        pair<int, int> west(currentLocation.first, currentLocation.second + 1);
+        pair<int, int> west(currentLocation.first, currentLocation.second - 1);
         for(size_t i = 0; i < 4; i++) {
-            if(h.huntOrder[i] == 'n') {
+            if(h.huntOrder[i] == 'n' || h.huntOrder[i] == 'N') {
                 locations.push_back(north);
             }
-            else if(h.huntOrder[i] == 'e') {
+            else if(h.huntOrder[i] == 'e' || h.huntOrder[i] == 'E') {
                locations.push_back(east);
             }
-            else if(h.huntOrder[i] == 's') {
+            else if(h.huntOrder[i] == 's' || h.huntOrder[i] == 'S') {
                 locations.push_back(south);
             }
             else {
@@ -400,13 +440,13 @@ void searchLocation(vector<pair<int, int>> v, vector<vector<char>> &map, Hunt &h
         && v[i].second < int(map[0].size()))) {
             if(map[size_t(v[i].first)][size_t(v[i].second)] == '.') {
                 if(checkPreviouslyDiscovered(v[i], h) == false) {
-                    if(huntO[i] == 'n') {
+                    if(huntO[i] == 'n' || huntO[i] == 'N') {
                         bt.directions.push_back('n');
                     }
-                    else if(huntO[i] == 'e') {
+                    else if(huntO[i] == 'e' || huntO[i] == 'E') {
                         bt.directions.push_back('e');
                     }
-                    else if(huntO[i] == 's') {
+                    else if(huntO[i] == 's' || huntO[i] == 'S') {
                         bt.directions.push_back('s');
                     }
                     else {
@@ -424,13 +464,13 @@ void searchLocation(vector<pair<int, int>> v, vector<vector<char>> &map, Hunt &h
             }
             else if(map[size_t(v[i].first)][size_t(v[i].second)] == 'o') {
                 if(checkPreviouslyDiscovered(v[i], h) == false) {
-                    if(huntO[i] == 'n') {
+                    if(huntO[i] == 'n' || huntO[i] == 'N') {
                         bt.directions.push_back('n');
                     }
-                    else if(huntO[i] == 'e') {
+                    else if(huntO[i] == 'e' || huntO[i] == 'E') {
                         bt.directions.push_back('e');
                     }
-                    else if(huntO[i] == 's') {
+                    else if(huntO[i] == 's' || huntO[i] == 'S') {
                         bt.directions.push_back('s');
                     }
                     else {
@@ -469,13 +509,13 @@ void startHunt(Hunt &h, vector<vector<char>> &map, Backtracer &bt) {
         pair<int, int> south(currentLocation.first + 1, currentLocation.second);
         pair<int, int> west(currentLocation.first, currentLocation.second - 1);
         for(size_t i = 0; i < 4; i++) {
-            if(h.huntOrder[i] == 'n') {
+            if(h.huntOrder[i] == 'n' || h.huntOrder[i] == 'N' ) {
                 locations.push_back(north);
             }
-            else if(h.huntOrder[i] == 'e') {
+            else if(h.huntOrder[i] == 'e' || h.huntOrder[i] == 'E' ) {
                 locations.push_back(east);
             }
-            else if(h.huntOrder[i] == 's') {
+            else if(h.huntOrder[i] == 's' || h.huntOrder[i] == 'S' ) {
                 locations.push_back(south);
             }
             else {
@@ -495,7 +535,10 @@ void handleCline(int argc, char * argv[], Hunt &h) {
     int choice;
     int option_index = 0;
     option long_options[] = {
-        {"help", no_argument, nullptr, 'h'},
+        {
+            "help", no_argument, nullptr, 'h'
+            
+        },
         {"captain", required_argument, nullptr, 'c'},
         {"first-mate", required_argument, nullptr, 'f'},
         {"hunt-order", required_argument, nullptr, 'o'},
@@ -510,8 +553,8 @@ void handleCline(int argc, char * argv[], Hunt &h) {
     while ((choice = getopt_long(argc, argv, "hc:f:o:vsp:", long_options, &option_index)) != -1) {
         switch (choice) {
             case 'h':
-                cout << "Hlep" << '\n';
-                exit(0);
+                cout << "Try running the executable with some command line options (for instance: -vspL). Also, make sure you use input redirection to get the output for the right map." << '\n';
+                exit(1);
                 
             case 'v':
                 h.showVerbose = true;
@@ -547,7 +590,7 @@ void handleCline(int argc, char * argv[], Hunt &h) {
                 
             case 'o':
                 h.huntOrder = optarg;
-                if(h.huntOrder.length() != 4 || (h.huntOrder.find('n') == string::npos || h.huntOrder.find('e') == string::npos || h.huntOrder.find('s') == string::npos || h.huntOrder.find('w') == string::npos)) {
+                if(h.huntOrder.length() != 4 || ((h.huntOrder.find('n') == string::npos && h.huntOrder.find('N') == string::npos) || (h.huntOrder.find('e') == string::npos && h.huntOrder.find('E') == string::npos) || (h.huntOrder.find('s') == string::npos && h.huntOrder.find('S') == string::npos) || (h.huntOrder.find('w') == string::npos && h.huntOrder.find('W') == string::npos))) {
                     cerr << "Error: invalid hunt order" << endl;
                     exit(1);
                 }

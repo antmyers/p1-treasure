@@ -1,0 +1,10 @@
+# Small Test with show path map and different hunt order
+M
+7
+o$.....
+oo...oo
+#..o.#.
+..oo.#.
+..@..#.
+#..o.#.
+#..o.#.

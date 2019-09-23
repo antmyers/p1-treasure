@@ -1,0 +1,18 @@
+# Large test but we just want to see the help message
+L
+10
+5 5 $
+4 5 o
+6 5 o
+5 6 o
+5 4 o
+8 8 @
+2 0 #
+0 0 #
+1 0 o
+1 1 #
+2 2 .
+2 3 o
+3 2 o
+3 3 o
+0 2 #

@@ -1,14 +1,15 @@
 # Failed treasure hunt with verbose and stats
 L
-6
+10
 0 1 $
-4 4 @
-2 0 #
-0 0 #
+2 0 o
+0 0 o
 1 0 o
-1 1 #
-2 2 .
+1 1 o
+2 2 o
 2 3 o
 3 2 o
 3 3 o
 0 2 #
+4 4 @
+0 2 o

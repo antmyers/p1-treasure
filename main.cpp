@@ -5,46 +5,53 @@
 //  Created by Andrew Myers on 9/17/19.
 //  Copyright © 2019 Andrew Myers. All rights reserved.
 //
+#include <unordered_set>
 #include <getopt.h>
 #include <deque>
 #include <stdio.h>
 #include <string>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 #include "xcode_redirect.hpp"
+#include <utility>
+
+
 
 using namespace std;
-
+struct Tile {
+    pair<int, int> coordinate;
+    char direction;
+    bool isDiscovered;
+};
 struct Hunt {
-    deque<pair<int, int>> sailContainer;
-    deque<pair<int, int>> searchContainer;
-    deque<pair<int, int>> discoveredLocations;
-    int waterLocations = 0;
-    int landLocations = 0;
-    int timesAshore = 0;
-    int investLocations = 0;
+    deque<Tile> sailContainer;
+    deque<Tile> searchContainer;
     pair<int, int> startingLocation;
-    bool successfulHunt = false;
-    bool showStats = false;
-    bool showVerbose = false;
     string showPath;
     string captainCon = "stack";
     string fmCon = "queue";
     string huntOrder = "nesw";
+    int waterLocations = 0;
+    int landLocations = 0;
+    int timesAshore = 0;
+    bool successfulHunt = false;
+    bool showStats = false;
+    bool showVerbose = false;
     
 };
 struct Backtracer {
-    vector<pair<int, int>> coordinates;
-    deque<pair<int, int>> oneBefore;
-    vector<char> directions;
+    vector<Tile> coordinates;
     deque<pair<int, int>> sailBack;
     deque<pair<int, int>> searchBack;
+    deque<char> lastCharacter;
+    deque<char> lastDirection;
 };
-void printMap(Backtracer &bt,vector<vector<char>> &map, string mapType) {
+void printMap(Backtracer &bt,vector<vector<pair<char, char>>> &map, string mapType) {
     if(mapType == "M") {
         for(size_t i = 0; i < map.size(); i++) {
             for(size_t j = 0; j < map.size(); j++) {
-                cout << map[i][j];
+                cout << map[i][j].first;
             }
             cout << '\n';
         }
@@ -61,182 +68,229 @@ void printMap(Backtracer &bt,vector<vector<char>> &map, string mapType) {
     }
 }
 
-
-int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>> &map) {
-    for(size_t i = 0; i < h.sailContainer.size(); i++) {
-        for(size_t j = 0; j < bt.coordinates.size(); j++) {
-            if(h.sailContainer[i] == bt.coordinates[j]) {
-                bt.coordinates.erase(bt.coordinates.begin() + int(j));
-                bt.directions.erase(bt.directions.begin() + int(j));
-                break;
-            }
-        }
-    }
-    for(size_t i = 0; i < h.searchContainer.size(); i++) {
-        for(size_t j = 0; j < bt.coordinates.size(); j++) {
-            if(h.searchContainer[i] == bt.coordinates[j]) {
-                if(bt.coordinates[j] == p) {
-                    break;
-                }
-                bt.coordinates.erase(bt.coordinates.begin() + int(j));
-                bt.directions.erase(bt.directions.begin() + int(j));
-                break;
-            }
-        }
-    }
+int runBacktracer(Backtracer &bt, Hunt &h, const pair<int, int> &p, vector<vector<pair<char, char>>> &map) {
     int pathLength = 0;
     pair<int, int> starter = p;
     if(h.showPath == "M") {
-        map[size_t(p.first)][size_t(p.second)] = 'X';
+        map[size_t(p.first)][size_t(p.second)].first = 'X';
     }
+    size_t i = bt.coordinates.size() - 1;
     while(starter != h.startingLocation) {
-        for(size_t i = 0; i < bt.coordinates.size(); i++) {
-            if(bt.coordinates[i] == starter) {
-                if(bt.directions[i] == 'n') {
-                    pair<int, int> temp(starter.first + 1, starter.second);
-                    starter = temp;
-                    pathLength++;
-                    if(h.showPath == "M") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'X') {
-                            break;
-                        }
-                        if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == 'X') {
-                            if(i != 0 && (bt.directions[i-1] == 'e' || bt.directions[i-1] == 'w')) {
-                               map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
-                            }
-                            else {
-                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '|';
-                            }
-                        }
-                        else if(map[size_t(bt.oneBefore[0].first)][size_t(bt.oneBefore[0].second)] == '-') {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
-                        }
-                        else {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '|';
-                        }
-                    }
-                    else if(h.showPath == "L") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == '$') {
-                            break;
-                        }
-                        else if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'o') {
-                            bt.searchBack.push_front(bt.coordinates[i]);
-                        }
-                        else {
-                            bt.sailBack.push_front(bt.coordinates[i]);
-                        }
-                    }
-                    break;
-                }
-                else if(bt.directions[i] == 'e') {
-                    pair<int, int> temp(starter.first, starter.second - 1);
-                    starter = temp;
-                    pathLength++;
-                    if(h.showPath == "M") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'X') {
-                            break;
-                        }
-                        if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == 'X') {
-                            if(i != 0 && (bt.directions[i-1] == 'n' || bt.directions[i-1] == 's')) {
-                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
-                            }
-                            else {
-                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '-';
-                            }
-                        }
-                        else if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == '|') {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
-                        }
-                        else {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '-';
-                        }
-                    }
-                    else if(h.showPath == "L") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == '$') {
-                            break;
-                        }
-                        else if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'o') {
-                            bt.searchBack.push_front(bt.coordinates[i]);
-                        }
-                        else {
-                            bt.sailBack.push_front(bt.coordinates[i]);
-                        }
-                    }
-                    break;
-                }
-                else if(bt.directions[i] == 's') {
-                    pair<int, int> temp(starter.first - 1, starter.second);
-                    starter = temp;
-                    pathLength++;
-                    if(h.showPath == "M") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'X') {
-                            break;
-                        }
-                        if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == 'X') {
-                            if(i != 0 && (bt.directions[i-1] == 'e' || bt.directions[i-1] == 'w')) {
-                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
-                            }
-                            else {
-                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '|';
-                            }
-                        }
-                        else if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == '-') {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
-                        }
-                        else {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '|';
-                        }
-                    }
-                    else if(h.showPath == "L") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == '$') {
-                            break;
-                        }
-                        else if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'o') {
-                            bt.searchBack.push_front(bt.coordinates[i]);
-                        }
-                        else {
-                            bt.sailBack.push_front(bt.coordinates[i]);
-                        }
-                    }
-                    break;
+        while(bt.coordinates[i].coordinate != starter) {
+            i--;
+        }
+        const char &c1 = bt.coordinates[i].direction;
+        if(c1 == 'n' || c1 == 'N') {
+            if(h.showPath == "M") {
+                if(i == bt.coordinates.size() - 1) {
+                    bt.lastCharacter.push_front('X');
                 }
                 else {
-                    pair<int, int> temp(starter.first, starter.second + 1);
-                    starter = temp;
-                    pathLength++;
-                    if(h.showPath == "M") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'X') {
-                            break;
-                        }
-                        if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == 'X') {
-                            if(i != 0 && (bt.directions[i-1] == 'n' || bt.directions[i-1] == 's')) {
-                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
-                            }
-                            else {
-                                map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '-';
-                            }
-                        }
-                        else if(map[size_t(bt.coordinates[i+1].first)][size_t(bt.coordinates[i+1].second)] == '|') {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '+';
+                    if(bt.lastCharacter[0] == 'X') {
+                        if(bt.lastDirection[0] == 'e' || bt.lastDirection[0] == 'w') {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                            bt.lastCharacter.push_front('+');
                         }
                         else {
-                            map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] = '-';
+                            map[size_t(starter.first)][size_t(starter.second)].first = '|';
+                            bt.lastCharacter.push_front('|');
                         }
                     }
-                    else if(h.showPath == "L") {
-                        if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == '$') {
-                            break;
-                        }
-                        else if(map[size_t(bt.coordinates[i].first)][size_t(bt.coordinates[i].second)] == 'o') {
-                            bt.searchBack.push_front(bt.coordinates[i]);
+                    else if(bt.lastCharacter[0] == '-') {
+                        map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                        bt.lastCharacter.push_front('+');
+                    }
+                    else if(bt.lastCharacter[0] == '+') {
+                        if(bt.lastDirection[0] == 'e' || bt.lastDirection[0] == 'w') {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                            bt.lastCharacter.push_front('+');
                         }
                         else {
-                            bt.sailBack.push_front(bt.coordinates[i]);
+                            map[size_t(starter.first)][size_t(starter.second)].first = '|';
+                            bt.lastCharacter.push_front('|');
                         }
                     }
-                    break;
+                    else {
+                       map[size_t(starter.first)][size_t(starter.second)].first = '|';
+                        bt.lastCharacter.push_front('|');
+                    }
                 }
             }
+            else if(h.showPath == "L") {
+                if(map[size_t(starter.first)][size_t(starter.second)].first == '$') {
+                    
+                }
+                else if(map[size_t(starter.first)][size_t(starter.second)].first == 'o') {
+                    bt.searchBack.push_front(starter);
+                }
+                else {
+                    bt.sailBack.push_front(starter);
+                }
+            }
+            pair<int, int> temp(starter.first + 1, starter.second);
+            starter = temp;
+            pathLength++;
+            i--;
+            bt.lastDirection.push_front('n');
+        }
+        else if(c1 == 'e' || c1 == 'E') {
+            if(h.showPath == "M") {
+                if(i == bt.coordinates.size() - 1) {
+                    bt.lastCharacter.push_front('X');
+                }
+                else {
+                    if(bt.lastCharacter[0] == 'X') {
+                        if(bt.lastDirection[0] == 'n' || bt.lastDirection[0] == 's') {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                            bt.lastCharacter.push_front('+');
+                        }
+                        else {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '-';
+                            bt.lastCharacter.push_front('-');
+                        }
+                    }
+                    else if(bt.lastCharacter[0] == '|') {
+                        map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                        bt.lastCharacter.push_front('+');
+                    }
+                    else if(bt.lastCharacter[0] == '+') {
+                        if(bt.lastDirection[0] == 'n' || bt.lastDirection[0] == 's') {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                            bt.lastCharacter.push_front('+');
+                        }
+                        else {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '-';
+                            bt.lastCharacter.push_front('-');
+                        }
+                    }
+                    else {
+                        map[size_t(starter.first)][size_t(starter.second)].first = '-';
+                        bt.lastCharacter.push_front('-');
+                    }
+                }
+            }
+            else if(h.showPath == "L") {
+                if(map[size_t(starter.first)][size_t(starter.second)].first == '$') {
+                    
+                }
+                else if(map[size_t(starter.first)][size_t(starter.second)].first == 'o') {
+                    bt.searchBack.push_front(starter);
+                }
+                else {
+                    bt.sailBack.push_front(starter);
+                }
+            }
+            pair<int, int> temp(starter.first, starter.second - 1);
+            starter = temp;
+            pathLength++;
+            i--;
+            bt.lastDirection.push_front('e');
+        }
+        else if(c1 == 's' || c1 == 'S') {
+            if(h.showPath == "M") {
+                if(i == bt.coordinates.size() - 1) {
+                    bt.lastCharacter.push_front('X');
+                }
+                else {
+                    if(bt.lastCharacter[0] == 'X') {
+                        if(bt.lastDirection[0] == 'e' || bt.lastDirection[0] == 'w') {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                            bt.lastCharacter.push_front('+');
+                        }
+                        else {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '|';
+                            bt.lastCharacter.push_front('|');
+                        }
+                    }
+                    else if(bt.lastCharacter[0] == '-') {
+                        map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                        bt.lastCharacter.push_front('+');
+                    }
+                    else if(bt.lastCharacter[0] == '+') {
+                        if(bt.lastDirection[0] == 'e' || bt.lastDirection[0] == 'w') {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                            bt.lastCharacter.push_front('+');
+                        }
+                        else {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '|';
+                            bt.lastCharacter.push_front('|');
+                        }
+                    }
+                    else {
+                        map[size_t(starter.first)][size_t(starter.second)].first = '|';
+                        bt.lastCharacter.push_front('|');
+                    }
+                }
+            }
+            else if(h.showPath == "L") {
+                if(map[size_t(starter.first)][size_t(starter.second)].first == '$') {
+                    
+                }
+                else if(map[size_t(starter.first)][size_t(starter.second)].first == 'o') {
+                    bt.searchBack.push_front(starter);
+                }
+                else {
+                    bt.sailBack.push_front(starter);
+                }
+            }
+            pair<int, int> temp(starter.first - 1, starter.second);
+            starter = temp;
+            pathLength++;
+            i--;
+            bt.lastDirection.push_front('s');
+        }
+        else {
+            if(h.showPath == "M") {
+                if(i == bt.coordinates.size() - 1) {
+                    bt.lastCharacter.push_front('X');
+                }
+                else {
+                    if(bt.lastCharacter[0] == 'X') {
+                        if(bt.lastDirection[0] == 'n' || bt.lastDirection[0] == 's') {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                            bt.lastCharacter.push_front('+');
+                        }
+                        else {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '-';
+                            bt.lastCharacter.push_front('-');
+                        }
+                    }
+                    else if(bt.lastCharacter[0] == '|') {
+                        map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                        bt.lastCharacter.push_front('+');
+                    }
+                    else if(bt.lastCharacter[0] == '+') {
+                        if(bt.lastDirection[0] == 'n' || bt.lastDirection[0] == 's') {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '+';
+                            bt.lastCharacter.push_front('+');
+                        }
+                        else {
+                            map[size_t(starter.first)][size_t(starter.second)].first = '-';
+                            bt.lastCharacter.push_front('-');
+                        }
+                    }
+                    else {
+                        map[size_t(starter.first)][size_t(starter.second)].first = '-';
+                        bt.lastCharacter.push_front('-');
+                    }
+                }
+            }
+            else if(h.showPath == "L") {
+                if(map[size_t(starter.first)][size_t(starter.second)].first == '$') {
+
+                }
+                else if(map[size_t(starter.first)][size_t(starter.second)].first == 'o') {
+                    bt.searchBack.push_front(starter);
+                }
+                else {
+                    bt.sailBack.push_front(starter);
+                }
+            }
+            pair<int, int> temp(starter.first, starter.second + 1);
+            starter = temp;
+            pathLength++;
+            i--;
+            bt.lastDirection.push_front('w');
         }
     }
     if(h.showPath == "L") {
@@ -246,7 +300,7 @@ int runBacktracer(Backtracer &bt, Hunt &h, pair<int, int> p, vector<vector<char>
     return pathLength;
 }
 
-void readTreasureMap(vector<vector<char>> &map, char &mapStyle, size_t N, Hunt &h) {
+void readTreasureMap(vector<vector<pair<char, char>>> &map, char &mapStyle, size_t N, Hunt &h) {
     char mapSpace;
     if(mapStyle == 'M') {
         for(size_t i = 0; i < N; i++) {
@@ -254,14 +308,18 @@ void readTreasureMap(vector<vector<char>> &map, char &mapStyle, size_t N, Hunt &
                 cin >> mapSpace;
                 if(mapSpace == '@') {
                     pair<int, int> p(i, j);
+                    Tile t;
+                    t.coordinate = p;
+                    t.direction = 'n';
                     if(h.captainCon == "queue") {
-                        h.sailContainer.push_back(p);
+                        h.sailContainer.push_back(t);
                     }
                     else {
-                        h.sailContainer.push_front(p);
+                        h.sailContainer.push_front(t);
                     }
                 }
-                map[i][j] = mapSpace;
+                map[i][j].first = mapSpace;
+                map[i][j].second = 'f';
             }
         }
     }
@@ -273,32 +331,40 @@ void readTreasureMap(vector<vector<char>> &map, char &mapStyle, size_t N, Hunt &
             cin >> mapSpace;
             if(mapSpace == '@') {
                 pair<int, int> p(rowNum, colNum);
+                Tile t;
+                t.coordinate = p;
+                t.direction = 'n';
                 if(h.captainCon == "queue") {
-                    h.sailContainer.push_back(p);
+                    h.sailContainer.push_back(t);
                 }
                 else {
-                    h.sailContainer.push_front(p);
+                    h.sailContainer.push_front(t);
                 }
             }
-            map[rowNum][colNum] = mapSpace;
+            map[rowNum][colNum].first = mapSpace;
+            map[rowNum][colNum].second = 'f';
         }
         for(size_t i = 0; i < N; i++) {
             for(size_t j = 0; j < N; j++) {
-                if(map[i][j] == '\0') {
-                    map[i][j] = '.';
+                if(map[i][j].first == '\0') {
+                    map[i][j].first = '.';
+                    map[i][j].second = 'f';
                 }
             }
         }
     }
 }
 void failedHunt(Hunt &h) {
+    if(h.showVerbose == true) {
+        cout << "Treasure hunt failed" << '\n';
+    }
     if(h.showStats == true) {
         cout << "--- STATS ---\n" << "Starting location: " << h.startingLocation.first << ',' << h.startingLocation.second << '\n' << "Water locations investigated: " << h.waterLocations << '\n' << "Land locations investigated: " << h.landLocations << '\n' << "Went ashore: " << h.timesAshore << '\n' << "--- STATS ---\n";
     }
     cout << "No treasure found after investigating " <<
-    h.discoveredLocations.size() << " locations.\n";
+    h.waterLocations + h.landLocations << " locations.\n";
 }
-void endHunt(pair<int, int> p, Hunt &h, Backtracer &bt, vector<vector<char>> &map) {
+void endHunt(const pair<int, int> &p, Hunt &h, Backtracer &bt, vector<vector<pair<char, char>>> &map) {
     int pathLength = runBacktracer(bt, h, p, map);
     h.successfulHunt = true;
     if(h.showStats == true) {
@@ -319,89 +385,65 @@ void endHunt(pair<int, int> p, Hunt &h, Backtracer &bt, vector<vector<char>> &ma
         h.searchContainer.pop_front();
     }
 }
-bool checkPreviouslyDiscovered(pair<int, int> p, Hunt &h) {
-    for(size_t i = 0; i < h.discoveredLocations.size(); i++) {
-        if(h.discoveredLocations[i].first == p.first && h.discoveredLocations[i].second == p.second) {
-            return true;
-        }
-    }
-    return false;
-}
-void searchFMLocation(vector<pair<int, int>> v, vector<vector<char>> &map, Hunt &h, Backtracer &bt) {
+
+void searchFMLocation(const vector<pair<int, int>> &v, vector<vector<pair<char, char>>> &map, Hunt &h, Backtracer &bt) {
     string huntO = h.huntOrder;
     for(size_t i = 0; i < 4; i++) {
-        if((v[i].first > -1 && v[i].first < int(map[0].size())) && (v[i].second > -1
-                                                              && v[i].second < int(map[0].size()))) {
-            if(map[size_t(v[i].first)][size_t(v[i].second)] == 'o') {
-                if(checkPreviouslyDiscovered(v[i], h) == false) {
-                    if(huntO[i] == 'n' || huntO[i] == 'N') {
-                        bt.directions.push_back('n');
-                    }
-                    else if(huntO[i] == 'e' || huntO[i] == 'E') {
-                        bt.directions.push_back('e');
-                    }
-                    else if(huntO[i] == 's' || huntO[i] == 'S') {
-                        bt.directions.push_back('s');
-                    }
-                    else {
-                        bt.directions.push_back('w');
-                    }
+        const pair<int, int> &p = v[i];
+        const static int size = int(map[0].size());
+        const char &mapChar = map[size_t(p.first)][size_t(p.second)].second;
+        if((p.first > -1 && p.first < size && (p.second > -1
+                                                              && p.second < size))) {
+            if(map[size_t(p.first)][size_t(p.second)].first == 'o') {
+                if(mapChar == 'f') {
+                    map[size_t(p.first)][size_t(p.second)].second = 't';
+                    Tile t;
+                    t.coordinate = p;
+                    t.direction = huntO[i];
                     if(h.fmCon == "stack") {
-                       h.searchContainer.push_front(v[i]);
+                       h.searchContainer.push_front(t);
                     }
                     else {
-                        h.searchContainer.push_back(v[i]);
+                        h.searchContainer.push_back(t);
                     }
-                    bt.coordinates.push_back(v[i]);
-                    h.discoveredLocations.push_back(v[i]);
                 }
             }
-            else if(map[size_t(v[i].first)][size_t(v[i].second)] == '$') {
-                if(huntO[i] == 'n' || huntO[i] == 'N') {
-                    bt.directions.push_back('n');
-                }
-                else if(huntO[i] == 'e' || huntO[i] == 'E') {
-                    bt.directions.push_back('e');
-                }
-                else if(huntO[i] == 's' || huntO[i] == 'S') {
-                    bt.directions.push_back('s');
-                }
-                else {
-                    bt.directions.push_back('w');
-                }
+            else if(map[size_t(p.first)][size_t(p.second)].first == '$') {
+                Tile t;
+                t.coordinate = p;
+                t.direction = huntO[i];
                 if(h.showVerbose == true) {
-                    cout << "party found treasure at " << v[i].first << ',' <<
-                    v[i].second << ".\n";
+                    cout << "party found treasure at " << p.first << ',' <<
+                    p.second << ".\n";
                 }
                 h.landLocations++;
                 if(h.fmCon == "stack") {
-                    h.searchContainer.push_front(v[i]);
+                    h.searchContainer.push_front(t);
                 }
                 else {
-                    h.searchContainer.push_back(v[i]);
+                    h.searchContainer.push_back(t);
                 }
-                bt.coordinates.push_back(v[i]);
-                h.discoveredLocations.push_front(v[i]);
-                endHunt(v[i], h, bt, map);
+                bt.coordinates.push_back(t);
+                endHunt(p, h, bt, map);
                 return;
             }
             
         }
     }
 }
-void firstMateTakeOver(Hunt &h, vector<vector<char>> &map, Backtracer &bt) {
+void firstMateTakeOver(Hunt &h, vector<vector<pair<char, char>>> &map, Backtracer &bt) {
     if(h.showVerbose == true) {
-        cout << "Went ashore at: " << h.searchContainer.front().first << ','
-        << h.searchContainer.front().second
+        cout << "Went ashore at: " << h.searchContainer.front().coordinate.first << ','
+        << h.searchContainer.front().coordinate.second
         << '\n';
         cout << "Searching island... ";
 
     }
     h.timesAshore++;
     while(h.searchContainer.empty() == false) {
-        pair<int, int> currentLocation = h.searchContainer.front();
+        pair<int, int> currentLocation = h.searchContainer.front().coordinate;
+        bt.coordinates.push_back(h.searchContainer.front());
         h.landLocations++;
-        h.investLocations++;
         h.searchContainer.pop_front();
         vector<pair<int, int>> locations;
         pair<int, int> north(currentLocation.first - 1, currentLocation.second);
@@ -430,78 +472,88 @@ void firstMateTakeOver(Hunt &h, vector<vector<char>> &map, Backtracer &bt) {
     return;
 }
 
-void searchLocation(vector<pair<int, int>> v, vector<vector<char>> &map, Hunt &h, Backtracer &bt) {
+void searchLocation(const vector<pair<int, int>> &v, vector<vector<pair<char, char>>> &map, Hunt &h, Backtracer &bt) {
     for(size_t i = 0; i < 4; i++) {
         if(h.successfulHunt == true) {
             return;
         }
         string huntO = h.huntOrder;
-        if((v[i].first > -1 && v[i].first < int(map[0].size())) && (v[i].second > -1
-        && v[i].second < int(map[0].size()))) {
-            if(map[size_t(v[i].first)][size_t(v[i].second)] == '.') {
-                if(checkPreviouslyDiscovered(v[i], h) == false) {
-                    if(huntO[i] == 'n' || huntO[i] == 'N') {
-                        bt.directions.push_back('n');
-                    }
-                    else if(huntO[i] == 'e' || huntO[i] == 'E') {
-                        bt.directions.push_back('e');
-                    }
-                    else if(huntO[i] == 's' || huntO[i] == 'S') {
-                        bt.directions.push_back('s');
-                    }
-                    else {
-                        bt.directions.push_back('w');
-                    }
+        const pair<int, int> & p = v[i];
+        const static int size = int(map[0].size());
+        char mapChar = 't';
+        if(size_t(p.first) < map.size() && size_t(p.second) < map.size()) {
+            mapChar = map[size_t(p.first)][size_t(p.second)].second;
+        }
+        if((p.first > -1 && p.first < size && (p.second > -1
+        && p.second < size))) {
+            if(map[size_t(p.first)][size_t(p.second)].first == '.') {
+                if(mapChar == 'f') {
+                    map[size_t(p.first)][size_t(p.second)].second = 't';
+                    Tile t;
+                    t.coordinate = p;
+                    t.direction = huntO[i];
                     if(h.captainCon == "queue") {
-                        h.sailContainer.push_back(v[i]);
+                        h.sailContainer.push_back(t);
                     }
                     else {
-                        h.sailContainer.push_front(v[i]);
+                        h.sailContainer.push_front(t);
                     }
-                    bt.coordinates.push_back(v[i]);
-                    h.discoveredLocations.push_front(v[i]);
                 }
             }
-            else if(map[size_t(v[i].first)][size_t(v[i].second)] == 'o') {
-                if(checkPreviouslyDiscovered(v[i], h) == false) {
-                    if(huntO[i] == 'n' || huntO[i] == 'N') {
-                        bt.directions.push_back('n');
-                    }
-                    else if(huntO[i] == 'e' || huntO[i] == 'E') {
-                        bt.directions.push_back('e');
-                    }
-                    else if(huntO[i] == 's' || huntO[i] == 'S') {
-                        bt.directions.push_back('s');
-                    }
-                    else {
-                        bt.directions.push_back('w');
-                    }
+            else if(map[size_t(p.first)][size_t(p.second)].first == 'o') {
+                if(mapChar == 'f') {
+                    map[size_t(p.first)][size_t(p.second)].second = 't';
+                    Tile t;
+                    t.coordinate = p;
+                    t.direction = huntO[i];
                     if(h.fmCon == "stack") {
-                        h.searchContainer.push_front(v[i]);
+                        h.searchContainer.push_front(t);
                     }
                     else {
-                        h.searchContainer.push_back(v[i]);
+                        h.searchContainer.push_back(t);
                     }
-                    bt.coordinates.push_back(v[i]);
-                    h.discoveredLocations.push_back(v[i]);
                     firstMateTakeOver(h, map, bt);
+                }
+            }
+            else if(map[size_t(p.first)][size_t(p.second)].first == '$') {
+                if(mapChar == 'f') {
+                    map[size_t(p.first)][size_t(p.second)].second = 't';
+                    Tile t;
+                    t.coordinate = p;
+                    t.direction = huntO[i];
+                    if(h.showVerbose == true) {
+                        cout << "Went ashore at: " << p.first << ',' <<
+                        p.second << "\n" << "Searching island... " << "party found treasure at " << p.first << ',' <<
+                        p.second << ".\n";
+                    }
+                    h.landLocations++;
+                    h.timesAshore++;
+                    if(h.fmCon == "stack") {
+                        h.searchContainer.push_front(t);
+                    }
+                    else {
+                        h.searchContainer.push_back(t);
+                    }
+                    bt.coordinates.push_back(t);
+                    endHunt(p, h, bt, map);
+                    return;
                 }
             }
         }
     }
 }
-void startHunt(Hunt &h, vector<vector<char>> &map, Backtracer &bt) {
-    pair<int, int> p(h.sailContainer.front().first, h.sailContainer.front().second);
+void startHunt(Hunt &h, vector<vector<pair<char, char>>> &map, Backtracer &bt) {
+    pair<int, int> p(h.sailContainer.front().coordinate.first, h.sailContainer.front().coordinate.second);
     h.startingLocation = p;
     if(h.showVerbose == true) {
         cout << "Treasure hunt started at: " <<
-        h.sailContainer.front().first << ',' << h.sailContainer.front().second
+        p.first << ',' << p.second
         << '\n';
     }
     while(h.sailContainer.empty() == false) {
-        pair<int, int> currentLocation = h.sailContainer.front();
+        pair<int, int> currentLocation = h.sailContainer.front().coordinate;
+        bt.coordinates.push_back(h.sailContainer.front());
         h.waterLocations++;
-        h.investLocations++;
         h.sailContainer.pop_front();
         vector<pair<int, int>> locations;
         pair<int, int> north(currentLocation.first - 1, currentLocation.second);
@@ -535,10 +587,7 @@ void handleCline(int argc, char * argv[], Hunt &h) {
     int choice;
     int option_index = 0;
     option long_options[] = {
-        {
-            "help", no_argument, nullptr, 'h'
-            
-        },
+        {"help", no_argument, nullptr, 'h'},
         {"captain", required_argument, nullptr, 'c'},
         {"first-mate", required_argument, nullptr, 'f'},
         {"hunt-order", required_argument, nullptr, 'o'},
@@ -565,6 +614,10 @@ void handleCline(int argc, char * argv[], Hunt &h) {
                 break;
             
             case 'p':
+                if(h.showPath.length() > 0) {
+                    cerr << "Error: invalid showPath" << endl;
+                    exit(1);
+                }
                 h.showPath = optarg;
                 if(h.showPath != "M" && h.showPath != "L") {
                     cerr << "Error: invalid showPath" << endl;
@@ -619,7 +672,7 @@ int main(int argc, char** argv) {
     }
     cin >> N;
     
-    vector<vector<char>> treasureMap(N, vector<char>(N));
+    vector<vector<pair<char, char>>> treasureMap(N, vector<pair<char, char>>(N));
     Hunt honcho;
     Backtracer bt;
     handleCline(argc, argv, honcho);

@@ -1,8 +1,8 @@
 # Large test but we just want to see the help message
 M
 10
-o$o.......
-oo...o.###
+o$@.......
+oo...o####
 #..o.#..o.
 ..oo.#..o.
 .....#..o.
@@ -10,4 +10,4 @@ oo...o.###
 #..o.#..o.
 #..o.#..o.
 #..o.#..o.
-#..o.#@.o.
+#..o.#..o.
